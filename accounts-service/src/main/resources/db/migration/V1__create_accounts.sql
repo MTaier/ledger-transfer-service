@@ -1,0 +1,10 @@
+CREATE TABLE accounts (
+    id BINARY(16) NOT NULL DEFAULT (UUID_TO_BIN(UUID())),
+    owner_name VARCHAR(150) NOT NULL,
+    document VARCHAR(14) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_document (document)
+)
