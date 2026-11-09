@@ -22,7 +22,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
-    @ExceptionHandler({DocumentAlreadyRegisteredException.class, DataIntegrityViolationException.class})
+    @ExceptionHandler(DocumentAlreadyRegisteredException.class)
     public ProblemDetail handleDuplicate(Exception ex) {
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "An account with this CPF already exists.");
         problem.setTitle("CPF already registered");
@@ -33,6 +33,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ProblemDetail handleNotFound(AccountNotFoundException ex) {
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
         problem.setTitle("Account not found");
+        return problem;
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ProblemDetail handleUnexpected(Exception ex) {
+        logger.error("Unexpected error", ex);
+        var problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.");
+        problem.setTitle("Internal server error");
         return problem;
     }
 
