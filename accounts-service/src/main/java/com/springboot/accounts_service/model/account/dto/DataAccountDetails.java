@@ -1,6 +1,6 @@
-package com.springboot.accounts_service.model.dto;
+package com.springboot.accounts_service.model.account.dto;
 
-import com.springboot.accounts_service.model.Account;
+import com.springboot.accounts_service.model.account.Account;
 
 public record DataAccountDetails(Long id, String ownerName, String document) {
 

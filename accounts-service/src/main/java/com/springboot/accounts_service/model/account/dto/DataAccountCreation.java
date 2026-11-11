@@ -1,4 +1,4 @@
-package com.springboot.accounts_service.model.dto;
+package com.springboot.accounts_service.model.account.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

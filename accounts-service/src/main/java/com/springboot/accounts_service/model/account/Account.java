@@ -1,4 +1,4 @@
-package com.springboot.accounts_service.model;
+package com.springboot.accounts_service.model.account;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;

@@ -1,7 +1,7 @@
 package com.springboot.accounts_service.repository;
 
 import com.springboot.accounts_service.TestcontainersConfiguration;
-import com.springboot.accounts_service.model.Account;
+import com.springboot.accounts_service.model.account.Account;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
