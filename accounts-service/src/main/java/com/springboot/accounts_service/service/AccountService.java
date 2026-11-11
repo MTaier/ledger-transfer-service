@@ -3,10 +3,12 @@ package com.springboot.accounts_service.service;
 import com.springboot.accounts_service.infra.exception.AccountNotFoundException;
 import com.springboot.accounts_service.infra.exception.DocumentAlreadyRegisteredException;
 import com.springboot.accounts_service.infra.exception.InvalidDocumentException;
-import com.springboot.accounts_service.model.Account;
-import com.springboot.accounts_service.model.dto.DataAccountCreation;
+import com.springboot.accounts_service.model.account.Account;
+import com.springboot.accounts_service.model.account.dto.DataAccountBalance;
+import com.springboot.accounts_service.model.account.dto.DataAccountCreation;
 import com.springboot.accounts_service.model.validation.CpfUtils;
 import com.springboot.accounts_service.repository.AccountRepository;
+import com.springboot.accounts_service.repository.LedgerEntryRepository;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -14,13 +16,17 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 @Service
 public class AccountService {
 
     private final AccountRepository accountRepository;
+    private final LedgerEntryRepository ledgerEntryRepository;
 
-    public AccountService(AccountRepository accountRepository) {
+    public AccountService(AccountRepository accountRepository, LedgerEntryRepository ledgerEntryRepository) {
         this.accountRepository = accountRepository;
+        this.ledgerEntryRepository = ledgerEntryRepository;
     }
 
     @Transactional
@@ -57,6 +63,17 @@ public class AccountService {
                 .orElseThrow(AccountNotFoundException::new);
     }
 
+    @Transactional(readOnly = true)
+    public BigDecimal getBalance(Long id) {
+
+        if (!accountRepository.existsById(id)) {
+            throw new AccountNotFoundException();
+        }
+
+        return ledgerEntryRepository.calculateBalanceByAccountId(id);
+
+    }
+
 
     private boolean validateDocumentUniqueness(String document) {
         return !accountRepository.existsByDocument(document);
@@ -67,4 +84,6 @@ public class AccountService {
                 && cve.getConstraintName() != null
                 && cve.getConstraintName().contains("uk_document");
     }
+
+
 }

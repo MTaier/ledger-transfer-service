@@ -23,16 +23,37 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler(DocumentAlreadyRegisteredException.class)
-    public ProblemDetail handleDuplicate(Exception ex) {
+    public ProblemDetail handleDuplicate(DocumentAlreadyRegisteredException ex) {
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "An account with this CPF already exists.");
         problem.setTitle("CPF already registered");
         return problem;
     }
 
     @ExceptionHandler(AccountNotFoundException.class)
-    public ProblemDetail handleNotFound(AccountNotFoundException ex) {
+    public ProblemDetail handleAccountNotFound(AccountNotFoundException ex) {
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
         problem.setTitle("Account not found");
+        return problem;
+    }
+
+    @ExceptionHandler(SameAccountTransferException.class)
+    public ProblemDetail handleSameAccountTransfer(SameAccountTransferException ex) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, "Source and destination accounts must be different.");
+        problem.setTitle("Invalid transfer");
+        return problem;
+    }
+
+    @ExceptionHandler(TransferNotFoundException.class)
+    public ProblemDetail handleTransferNotFound(TransferNotFoundException ex) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Transfer not found");
+        return problem;
+    }
+
+    @ExceptionHandler(InsufficientBalanceException.class)
+    public ProblemDetail handleInsufficientBalance(InsufficientBalanceException ex) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, "Insufficient funds to complete this transfer.");
+        problem.setTitle("Insufficient balance");
         return problem;
     }
 

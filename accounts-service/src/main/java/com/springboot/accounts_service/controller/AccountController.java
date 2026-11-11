@@ -1,7 +1,8 @@
 package com.springboot.accounts_service.controller;
 
-import com.springboot.accounts_service.model.dto.DataAccountCreation;
-import com.springboot.accounts_service.model.dto.DataAccountDetails;
+import com.springboot.accounts_service.model.account.dto.DataAccountBalance;
+import com.springboot.accounts_service.model.account.dto.DataAccountCreation;
+import com.springboot.accounts_service.model.account.dto.DataAccountDetails;
 import com.springboot.accounts_service.service.AccountService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -56,4 +57,14 @@ public class AccountController {
         return ResponseEntity.ok(new DataAccountDetails(account));
 
     }
+
+    @GetMapping("/{id}/balance")
+    public ResponseEntity<DataAccountBalance> getAccountBalance(@PathVariable Long id) {
+
+        var balance = accountService.getBalance(id);
+
+        return ResponseEntity.ok(new DataAccountBalance(id, balance));
+
+    }
+
 }
