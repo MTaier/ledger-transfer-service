@@ -159,6 +159,8 @@ Todos os erros seguem o padrão **ProblemDetail** ([RFC 9457](https://www.rfc-ed
 - **Schema controlado só pelo Flyway.** O Hibernate roda com `ddl-auto=validate`: ele confere se as entidades batem com as tabelas, mas nunca altera o banco.
 - **Id numérico sequencial.** O id da conta é `BIGINT AUTO_INCREMENT`, mais simples e eficiente como chave primária no InnoDB.
 - **Segredos fora do código.** Credenciais vêm de variáveis de ambiente; o `.env` está no `.gitignore`.
+- **Dinheiro como `BigDecimal` com 2 casas** (`DECIMAL(19,2)` no MySQL). `double` e `float` estão fora, porque não representam centavos com exatidão (`0.1 + 0.2` dá `0.30000000000000004`). Entre `BigDecimal` e centavos em `long`, a escolha foi `BigDecimal`: é o padrão em Java para valores monetários, o valor é lido como dinheiro em toda a pilha (JSON, código e banco) e não exige conversão na entrada e na saída da API. O custo é ter que comparar valores com `compareTo`, e não com `equals`, e controlar a escala.
+- **Dois estados de transferência: `COMPLETED` e `REJECTED`.** A transferência roda numa única transação, então nunca existe uma transferência visível "em processamento": ela é gravada concluída ou não é gravada. `COMPLETED` significa que o débito e o crédito foram lançados no ledger. `REJECTED` registra uma transferência recusada por regra de negócio (como saldo insuficiente ou conta bloqueada), sem lançamentos, para auditoria, métricas e para a idempotência devolver a mesma resposta numa nova tentativa. Erros de entrada (valor inválido, contas iguais, campo faltando) devolvem 400 e não são gravados como transferência.
 
 ## Roadmap
 
