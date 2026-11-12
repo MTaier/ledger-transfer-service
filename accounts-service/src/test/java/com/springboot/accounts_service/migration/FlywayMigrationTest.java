@@ -80,4 +80,124 @@ class FlywayMigrationTest {
         assertThat(notNullColumns)
                 .containsExactlyInAnyOrder("id", "owner_name", "document", "status", "created_at");
     }
+
+    @Test
+    void transfersTableIsCreatedByFlyway() {
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM transfers", Integer.class);
+
+        assertThat(count).isZero();
+    }
+
+    @Test
+    void transfersTableHasExpectedColumns() {
+        var columns = jdbcTemplate.queryForList(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = DATABASE()
+                    AND table_name = 'transfers'
+                """,
+                String.class
+        );
+
+        assertThat(columns).containsExactlyInAnyOrder(
+               "id",
+               "idempotency_key",
+               "from_account_id",
+               "to_account_id",
+               "amount",
+               "status",
+               "created_at"
+        );
+    }
+
+    @Test
+    void idempotencyKeyShouldHaveUniqueIndex() {
+        String indexedColumn = jdbcTemplate.queryForObject("""
+                SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.STATISTICS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'transfers' AND INDEX_NAME = 'uk_idempotency_key'
+                """, String.class);
+
+        Integer nonUnique = jdbcTemplate.queryForObject("""
+                SELECT NON_UNIQUE FROM INFORMATION_SCHEMA.STATISTICS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'transfers' AND INDEX_NAME = 'uk_idempotency_key'
+                """, Integer.class);
+
+        assertThat(indexedColumn).isEqualTo("idempotency_key");
+        assertThat(nonUnique).isZero();
+    }
+
+    @Test
+    void ledgerEntriesShouldHaveUniqueTransferIdAndDirectionIndex() {
+        List<String> indexedColumns = jdbcTemplate.queryForList(
+                """
+                SELECT COLUMN_NAME
+                FROM INFORMATION_SCHEMA.STATISTICS
+                WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = 'ledger_entries'
+                    AND INDEX_NAME = 'uk_ledger_entries_transfer_direction'
+                ORDER BY SEQ_IN_INDEX
+                """,
+                String.class
+        );
+
+        Integer nonUnique = jdbcTemplate.queryForObject(
+                """
+                SELECT NON_UNIQUE
+                FROM INFORMATION_SCHEMA.STATISTICS
+                WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = 'ledger_entries'
+                    AND INDEX_NAME = 'uk_ledger_entries_transfer_direction'
+                LIMIT 1
+                """,
+                Integer.class
+        );
+
+        assertThat(indexedColumns)
+                .containsExactly("transfer_id", "direction");
+
+        assertThat(nonUnique).isZero();
+    }
+
+    @Test
+    void ledgerEntriesShouldHavePositiveAmountCheckConstraint() {
+        List<String> constraints = jdbcTemplate.queryForList(
+                """
+                SELECT CONSTRAINT_NAME
+                FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+                WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = 'ledger_entries'
+                    AND CONSTRAINT_TYPE = 'CHECK'
+                """,
+                String.class
+        );
+
+        assertThat(constraints).contains("ck_ledger_entries_amount_positive");
+    }
+
+    @Test
+    void allForeignKeysShouldBeCreatedByFlyway() {
+        List<String> foreignKeys = jdbcTemplate.queryForList(
+                """
+                SELECT CONSTRAINT_NAME
+                FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+                WHERE TABLE_SCHEMA = DATABASE()
+                    AND REFERENCED_TABLE_NAME IS NOT NULL
+                    AND CONSTRAINT_NAME IN (
+                        'fk_transfers_from_account',
+                        'fk_transfers_to_account',
+                        'fk_ledger_entries_transfer',
+                        'fk_ledger_entries_account'
+                    )
+                """,
+                String.class
+        );
+
+        assertThat(foreignKeys).containsExactlyInAnyOrder(
+                "fk_transfers_from_account",
+                "fk_transfers_to_account",
+                "fk_ledger_entries_transfer",
+                "fk_ledger_entries_account"
+        );
+    }
 }
