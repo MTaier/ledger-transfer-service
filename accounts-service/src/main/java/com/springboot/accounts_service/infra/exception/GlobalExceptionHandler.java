@@ -1,5 +1,11 @@
 package com.springboot.accounts_service.infra.exception;
 
+import com.springboot.accounts_service.model.account.exception.AccountNotFoundException;
+import com.springboot.accounts_service.model.account.exception.DocumentAlreadyRegisteredException;
+import com.springboot.accounts_service.model.account.exception.InvalidDocumentException;
+import com.springboot.accounts_service.model.transfer.exception.InsufficientBalanceException;
+import com.springboot.accounts_service.model.transfer.exception.SameAccountTransferException;
+import com.springboot.accounts_service.model.transfer.exception.TransferNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.*;
 import org.springframework.validation.FieldError;

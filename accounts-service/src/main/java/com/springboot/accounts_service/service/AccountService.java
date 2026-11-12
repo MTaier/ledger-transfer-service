@@ -1,8 +1,8 @@
 package com.springboot.accounts_service.service;
 
-import com.springboot.accounts_service.infra.exception.AccountNotFoundException;
-import com.springboot.accounts_service.infra.exception.DocumentAlreadyRegisteredException;
-import com.springboot.accounts_service.infra.exception.InvalidDocumentException;
+import com.springboot.accounts_service.model.account.exception.AccountNotFoundException;
+import com.springboot.accounts_service.model.account.exception.DocumentAlreadyRegisteredException;
+import com.springboot.accounts_service.model.account.exception.InvalidDocumentException;
 import com.springboot.accounts_service.model.account.Account;
 import com.springboot.accounts_service.model.account.dto.DataAccountBalance;
 import com.springboot.accounts_service.model.account.dto.DataAccountCreation;

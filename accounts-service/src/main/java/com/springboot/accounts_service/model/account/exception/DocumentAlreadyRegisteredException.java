@@ -1,4 +1,4 @@
-package com.springboot.accounts_service.infra.exception;
+package com.springboot.accounts_service.model.account.exception;
 
 public class DocumentAlreadyRegisteredException extends RuntimeException{
 

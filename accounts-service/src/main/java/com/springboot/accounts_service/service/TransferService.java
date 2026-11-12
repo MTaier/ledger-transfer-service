@@ -1,9 +1,9 @@
 package com.springboot.accounts_service.service;
 
-import com.springboot.accounts_service.infra.exception.AccountNotFoundException;
-import com.springboot.accounts_service.infra.exception.InsufficientBalanceException;
-import com.springboot.accounts_service.infra.exception.SameAccountTransferException;
-import com.springboot.accounts_service.infra.exception.TransferNotFoundException;
+import com.springboot.accounts_service.model.account.exception.AccountNotFoundException;
+import com.springboot.accounts_service.model.transfer.exception.InsufficientBalanceException;
+import com.springboot.accounts_service.model.transfer.exception.SameAccountTransferException;
+import com.springboot.accounts_service.model.transfer.exception.TransferNotFoundException;
 import com.springboot.accounts_service.model.account.AccountStatus;
 import com.springboot.accounts_service.model.ledger.LedgerEntry;
 import com.springboot.accounts_service.model.ledger.LedgerEntryDirection;
@@ -50,8 +50,8 @@ public class TransferService {
 
         var transfer = transferRepository.save(new Transfer(data.fromAccountId(), data.toAccountId(), data.amount(), TransferStatus.COMPLETED));
 
-        ledgerEntryRepository.saveAndFlush(new LedgerEntry(transfer.getId(), transfer.getFromAccountId(), LedgerEntryDirection.DEBIT, transfer.getAmount()));
-        ledgerEntryRepository.saveAndFlush(new LedgerEntry(transfer.getId(), transfer.getToAccountId(), LedgerEntryDirection.CREDIT, transfer.getAmount()));
+        ledgerEntryRepository.save(new LedgerEntry(transfer.getId(), transfer.getFromAccountId(), LedgerEntryDirection.DEBIT, transfer.getAmount()));
+        ledgerEntryRepository.save(new LedgerEntry(transfer.getId(), transfer.getToAccountId(), LedgerEntryDirection.CREDIT, transfer.getAmount()));
 
         return transfer;
     }

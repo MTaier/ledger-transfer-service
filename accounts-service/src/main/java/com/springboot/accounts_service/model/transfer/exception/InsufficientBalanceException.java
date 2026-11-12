@@ -1,4 +1,4 @@
-package com.springboot.accounts_service.infra.exception;
+package com.springboot.accounts_service.model.transfer.exception;
 
 public class InsufficientBalanceException extends RuntimeException {
     public InsufficientBalanceException() {
