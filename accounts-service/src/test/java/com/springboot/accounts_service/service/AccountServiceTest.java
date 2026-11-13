@@ -8,6 +8,7 @@ import com.springboot.accounts_service.model.account.dto.DataAccountCreation;
 import com.springboot.accounts_service.repository.AccountRepository;
 import com.springboot.accounts_service.repository.LedgerEntryRepository;
 import org.hibernate.exception.ConstraintViolationException;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -37,6 +38,7 @@ public class AccountServiceTest {
     private AccountService accountService;
 
     @Test
+    @DisplayName("Creates an account with normalized CPF")
     void shouldCreateAccountSuccessfully() {
         var data = new DataAccountCreation(
                 "John Doe",
@@ -60,6 +62,7 @@ public class AccountServiceTest {
     }
 
     @Test
+    @DisplayName("Throws InvalidDocumentException for an invalid CPF")
     void shouldRejectInvalidCpf() {
         var data = new DataAccountCreation(
                 "John Doe",
@@ -74,6 +77,7 @@ public class AccountServiceTest {
     }
 
     @Test
+    @DisplayName("Throws DocumentAlreadyRegisteredException when the CPF already exists")
     void shouldRejectDuplicateCpf() {
         var data = new DataAccountCreation(
                 "John Doe",
@@ -91,6 +95,7 @@ public class AccountServiceTest {
     }
 
     @Test
+    @DisplayName("Maps a concurrent unique-CPF violation to DocumentAlreadyRegisteredException")
     void shouldRejectDuplicateCpfOnConcurrentInsert() {
         var data = new DataAccountCreation(
                 "John Doe",
@@ -120,6 +125,7 @@ public class AccountServiceTest {
     }
 
     @Test
+    @DisplayName("Throws AccountNotFoundException when fetching a missing account")
     void shouldThrowWhenAccountDoesNotExist() {
         Long accountId = 999L;
 
@@ -133,6 +139,7 @@ public class AccountServiceTest {
     }
 
     @Test
+    @DisplayName("Rethrows integrity violations that are not about the CPF")
     void shouldNotTreatOtherIntegrityViolationAsDuplicateDocument() {
         var data = new DataAccountCreation(
                 "John Doe",
@@ -164,6 +171,7 @@ public class AccountServiceTest {
     }
 
     @Test
+    @DisplayName("Returns the ledger balance of an existing account")
     void shouldReturnBalanceWhenAccountExists() {
         Long accountId = 1L;
 
@@ -176,6 +184,7 @@ public class AccountServiceTest {
     }
 
     @Test
+    @DisplayName("Throws AccountNotFoundException and skips the balance query for a missing account")
     void shouldThrowWhenAccountDoesNotExistOnBalance() {
         Long accountId = 999L;
 

@@ -11,6 +11,7 @@ import com.springboot.accounts_service.repository.AccountRepository;
 import com.springboot.accounts_service.repository.LedgerEntryRepository;
 import com.springboot.accounts_service.repository.TransferRepository;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -48,6 +49,7 @@ public class TransferServiceAtomicityTest {
     }
 
     @Test
+    @DisplayName("Rolls back the transfer and the debit when saving the credit fails")
     void shouldRollbackEverythingWhenCreditEntryFails() {
         var payer = accountRepository.save(new Account("John Doe", "88461276094"));
         var receiver = accountRepository.save(new Account("Jane Doe", "12345678909"));

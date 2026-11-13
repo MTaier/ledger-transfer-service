@@ -9,6 +9,7 @@ import com.springboot.accounts_service.model.transfer.TransferStatus;
 import com.springboot.accounts_service.repository.AccountRepository;
 import com.springboot.accounts_service.repository.LedgerEntryRepository;
 import com.springboot.accounts_service.repository.TransferRepository;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -43,6 +44,7 @@ public class AccountControllerTest {
     private LedgerEntryRepository ledgerEntryRepository;
 
     @Test
+    @DisplayName("POST /accounts returns 201 with Location header and masked CPF")
     void shouldCreateAccount() throws Exception {
         mockMvc.perform(post("/accounts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -56,6 +58,7 @@ public class AccountControllerTest {
     }
 
     @Test
+    @DisplayName("POST /accounts returns 400 Invalid CPF when check digits are wrong")
     void shouldRejectInvalidCpf() throws Exception {
         mockMvc.perform(post("/accounts")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -67,6 +70,7 @@ public class AccountControllerTest {
     }
 
     @Test
+    @DisplayName("POST /accounts returns 400 Invalid data with field errors when a field is blank")
     void shouldRejectBlankFields() throws Exception {
         mockMvc.perform(post("/accounts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -80,6 +84,7 @@ public class AccountControllerTest {
     }
 
     @Test
+    @DisplayName("POST /accounts returns 409 when the CPF is already registered")
     void shouldRejectDuplicateCpf() throws Exception {
         var body = """
             {"ownerName": "John Doe", "document": "884.612.760-94"}
@@ -99,12 +104,14 @@ public class AccountControllerTest {
     }
 
     @Test
+    @DisplayName("GET /accounts/{id} returns 404 when the account does not exist")
     void shouldThrowWhenAccountDoesNotExist() throws Exception {
         mockMvc.perform(get("/accounts/999999"))
                 .andExpect(status().isNotFound());
     }
 
     @Test
+    @DisplayName("GET /accounts/{id}/balance returns 200 with the sum of ledger entries")
     void shouldReturnAccountBalance() throws Exception {
         var account = accountRepository.save(new Account("John Doe", "88461276094"));
         var source = accountRepository.save(new Account("Jane Doe", "12345678909"));
@@ -123,6 +130,7 @@ public class AccountControllerTest {
     }
 
     @Test
+    @DisplayName("GET /accounts/{id}/balance returns 0.0 for an account without entries")
     void shouldReturnZeroBalanceForNewAccount() throws Exception {
         var account = accountRepository.save(new Account("John Doe", "88461276094"));
         var accountId = account.getId();
@@ -134,6 +142,7 @@ public class AccountControllerTest {
     }
 
     @Test
+    @DisplayName("GET /accounts/{id}/balance returns 404 ProblemDetail when the account does not exist")
     void shouldReturnNotFoundForBalanceOfMissingAccount() throws Exception {
         mockMvc.perform(get("/accounts/999999/balance"))
                 .andExpect(status().isNotFound())

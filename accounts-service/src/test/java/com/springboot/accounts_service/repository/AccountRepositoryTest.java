@@ -2,6 +2,7 @@ package com.springboot.accounts_service.repository;
 
 import com.springboot.accounts_service.TestcontainersConfiguration;
 import com.springboot.accounts_service.model.account.Account;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -31,6 +32,7 @@ class AccountRepositoryTest {
     private AccountRepository accountRepository;
 
     @Test
+    @DisplayName("Generates an id when an account is saved")
     void shouldGenerateIdWhenAccountIsPersisted() {
         var account = new Account("John Doe", VALID_DOCUMENT);
 
@@ -41,6 +43,7 @@ class AccountRepositoryTest {
     }
 
     @Test
+    @DisplayName("Finds a saved account by id")
     void shouldFindAccountById() {
         var savedAccount = accountRepository.saveAndFlush(new Account("John Doe", VALID_DOCUMENT));
 
@@ -52,11 +55,13 @@ class AccountRepositoryTest {
     }
 
     @Test
+    @DisplayName("Returns empty when the account id does not exist")
     void shouldReturnEmptyWhenAccountDoesNotExist() {
         assertThat(accountRepository.findById(999_999L)).isEmpty();
     }
 
     @Test
+    @DisplayName("Reports true for a CPF that is already registered")
     void shouldReportExistingDocument() {
         accountRepository.saveAndFlush(new Account("John Doe", VALID_DOCUMENT));
 
@@ -64,11 +69,13 @@ class AccountRepositoryTest {
     }
 
     @Test
+    @DisplayName("Reports false for a CPF that is not registered")
     void shouldReportMissingDocument() {
         assertThat(accountRepository.existsByDocument(VALID_DOCUMENT)).isFalse();
     }
 
     @Test
+    @DisplayName("Database rejects two accounts with the same CPF")
     void shouldRejectDuplicateDocuments() {
         accountRepository.saveAndFlush(new Account("John Doe", VALID_DOCUMENT));
         var duplicate = new Account("Jane Doe", VALID_DOCUMENT);

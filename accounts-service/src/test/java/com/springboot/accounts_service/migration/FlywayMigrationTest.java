@@ -1,6 +1,7 @@
 package com.springboot.accounts_service.migration;
 
 import com.springboot.accounts_service.TestcontainersConfiguration;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -23,6 +24,7 @@ class FlywayMigrationTest {
     JdbcTemplate jdbcTemplate;
 
     @Test
+    @DisplayName("Flyway creates the accounts table")
     void accountsTableIsCreatedByFlyway() {
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM accounts", Integer.class);
 
@@ -30,6 +32,7 @@ class FlywayMigrationTest {
     }
 
     @Test
+    @DisplayName("accounts.id is BIGINT AUTO_INCREMENT")
     void idShouldBeBigintAutoIncrement() {
         // INFORMATION_SCHEMA.COLUMNS tem uma linha por coluna de cada tabela.
         // TABLE_SCHEMA = DATABASE() limita ao banco atual: no Testcontainers ele se chama "test",
@@ -50,6 +53,7 @@ class FlywayMigrationTest {
     }
 
     @Test
+    @DisplayName("accounts.document has a unique index")
     void documentShouldHaveUniqueIndex() {
         // INFORMATION_SCHEMA.STATISTICS tem uma linha por coluna de cada índice.
         String indexedColumn = jdbcTemplate.queryForObject("""
@@ -68,6 +72,7 @@ class FlywayMigrationTest {
     }
 
     @Test
+    @DisplayName("All accounts columns are NOT NULL")
     void allColumnsShouldBeNotNull() {
         // Busca todas as colunas que NÃO aceitam nulo (IS_NULLABLE = 'NO').
         List<String> notNullColumns = jdbcTemplate.queryForList("""
@@ -82,6 +87,7 @@ class FlywayMigrationTest {
     }
 
     @Test
+    @DisplayName("Flyway creates the transfers table")
     void transfersTableIsCreatedByFlyway() {
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM transfers", Integer.class);
 
@@ -89,6 +95,7 @@ class FlywayMigrationTest {
     }
 
     @Test
+    @DisplayName("transfers table has exactly the expected columns")
     void transfersTableHasExpectedColumns() {
         var columns = jdbcTemplate.queryForList(
                 """
@@ -112,6 +119,7 @@ class FlywayMigrationTest {
     }
 
     @Test
+    @DisplayName("transfers.idempotency_key has a unique index")
     void idempotencyKeyShouldHaveUniqueIndex() {
         String indexedColumn = jdbcTemplate.queryForObject("""
                 SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.STATISTICS
@@ -128,6 +136,7 @@ class FlywayMigrationTest {
     }
 
     @Test
+    @DisplayName("ledger_entries has a unique index on (transfer_id, direction)")
     void ledgerEntriesShouldHaveUniqueTransferIdAndDirectionIndex() {
         List<String> indexedColumns = jdbcTemplate.queryForList(
                 """
@@ -160,6 +169,7 @@ class FlywayMigrationTest {
     }
 
     @Test
+    @DisplayName("ledger_entries has a CHECK constraint for positive amounts")
     void ledgerEntriesShouldHavePositiveAmountCheckConstraint() {
         List<String> constraints = jdbcTemplate.queryForList(
                 """
@@ -176,6 +186,7 @@ class FlywayMigrationTest {
     }
 
     @Test
+    @DisplayName("All foreign keys of transfers and ledger_entries exist")
     void allForeignKeysShouldBeCreatedByFlyway() {
         List<String> foreignKeys = jdbcTemplate.queryForList(
                 """

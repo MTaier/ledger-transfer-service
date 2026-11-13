@@ -6,6 +6,7 @@ import com.springboot.accounts_service.model.ledger.LedgerEntry;
 import com.springboot.accounts_service.model.ledger.LedgerEntryDirection;
 import com.springboot.accounts_service.model.transfer.Transfer;
 import com.springboot.accounts_service.model.transfer.TransferStatus;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -34,6 +35,7 @@ public class LedgerEntryRepositoryTest {
     private LedgerEntryRepository ledgerEntryRepository;
 
     @Test
+    @DisplayName("Balance is zero for an account without ledger entries")
     void shouldReturnZeroWhenAccountHasNoEntries() {
         var account = accountRepository.save(new Account("John Doe", VALID_DOCUMENT_1));
 
@@ -43,6 +45,7 @@ public class LedgerEntryRepositoryTest {
     }
 
     @Test
+    @DisplayName("Balance is the sum of credits when there are no debits")
     void shouldSumCreditsWhenAccountHasOnlyCredits() {
         var account = accountRepository.save(new Account("John Doe", VALID_DOCUMENT_1));
         var source = accountRepository.save(new Account("Jane Doe", VALID_DOCUMENT_2));
@@ -61,6 +64,7 @@ public class LedgerEntryRepositoryTest {
     }
 
     @Test
+    @DisplayName("Balance is credits minus debits")
     void shouldSubtractDebitsFromCredits() {
         var account = accountRepository.save(new Account("John Doe", VALID_DOCUMENT_1));
         var source = accountRepository.save(new Account("Jane Doe", VALID_DOCUMENT_2));
@@ -79,6 +83,7 @@ public class LedgerEntryRepositoryTest {
     }
 
     @Test
+    @DisplayName("Balance ignores ledger entries of other accounts")
     void shouldIgnoreEntriesFromOtherAccounts() {
         var account1 = accountRepository.save(new Account("John Doe", VALID_DOCUMENT_1));
         var account2 = accountRepository.save(new Account("Jane Doe", VALID_DOCUMENT_2));
