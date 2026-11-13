@@ -2,11 +2,11 @@ package com.springboot.accounts_service.infra.exception;
 
 import com.springboot.accounts_service.model.account.exception.AccountNotFoundException;
 import com.springboot.accounts_service.model.account.exception.DocumentAlreadyRegisteredException;
+import com.springboot.accounts_service.model.account.exception.InactiveAccountException;
 import com.springboot.accounts_service.model.account.exception.InvalidDocumentException;
 import com.springboot.accounts_service.model.transfer.exception.InsufficientBalanceException;
 import com.springboot.accounts_service.model.transfer.exception.SameAccountTransferException;
 import com.springboot.accounts_service.model.transfer.exception.TransferNotFoundException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.*;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -30,7 +30,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(DocumentAlreadyRegisteredException.class)
     public ProblemDetail handleDuplicate(DocumentAlreadyRegisteredException ex) {
-        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "An account with this CPF already exists.");
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
         problem.setTitle("CPF already registered");
         return problem;
     }
@@ -44,7 +44,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(SameAccountTransferException.class)
     public ProblemDetail handleSameAccountTransfer(SameAccountTransferException ex) {
-        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, "Source and destination accounts must be different.");
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         problem.setTitle("Invalid transfer");
         return problem;
     }
@@ -58,8 +58,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(InsufficientBalanceException.class)
     public ProblemDetail handleInsufficientBalance(InsufficientBalanceException ex) {
-        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, "Insufficient funds to complete this transfer.");
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         problem.setTitle("Insufficient balance");
+        return problem;
+    }
+
+    @ExceptionHandler(InactiveAccountException.class)
+    public ProblemDetail handleInactiveAccount(InactiveAccountException ex) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
+        problem.setTitle("Account not active");
         return problem;
     }
 

@@ -1,6 +1,7 @@
 package com.springboot.accounts_service.service;
 
 import com.springboot.accounts_service.model.account.exception.AccountNotFoundException;
+import com.springboot.accounts_service.model.account.exception.InactiveAccountException;
 import com.springboot.accounts_service.model.transfer.exception.InsufficientBalanceException;
 import com.springboot.accounts_service.model.transfer.exception.SameAccountTransferException;
 import com.springboot.accounts_service.model.transfer.exception.TransferNotFoundException;
@@ -13,11 +14,8 @@ import com.springboot.accounts_service.model.transfer.dto.TransferEntry;
 import com.springboot.accounts_service.repository.AccountRepository;
 import com.springboot.accounts_service.repository.LedgerEntryRepository;
 import com.springboot.accounts_service.repository.TransferRepository;
-import jakarta.validation.Valid;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
 
 @Service
 public class TransferService {
@@ -39,9 +37,20 @@ public class TransferService {
             throw new SameAccountTransferException();
         }
 
-        if (!accountRepository.existsByIdAndStatus(data.fromAccountId(), AccountStatus.ACTIVE) ||
-                !accountRepository.existsByIdAndStatus(data.toAccountId(), AccountStatus.ACTIVE)) {
-            throw new AccountNotFoundException();
+        if (!accountRepository.existsById(data.fromAccountId())) {
+            throw new AccountNotFoundException("Source account not found.");
+        }
+
+        if (!accountRepository.existsById(data.toAccountId())) {
+            throw new AccountNotFoundException("Destination account not found.");
+        }
+
+        if (!accountRepository.existsByIdAndStatus(data.fromAccountId(), AccountStatus.ACTIVE)) {
+            throw new InactiveAccountException("Source account is inactive or blocked.");
+        }
+
+        if (!accountRepository.existsByIdAndStatus(data.toAccountId(), AccountStatus.ACTIVE)) {
+            throw new InactiveAccountException("Destination account is inactive or blocked.");
         }
 
         if (ledgerEntryRepository.calculateBalanceByAccountId(data.fromAccountId()).compareTo(data.amount()) < 0) {
