@@ -1,9 +1,6 @@
 package com.springboot.accounts_service.infra.exception;
 
-import com.springboot.accounts_service.model.account.exception.AccountNotFoundException;
-import com.springboot.accounts_service.model.account.exception.DocumentAlreadyRegisteredException;
-import com.springboot.accounts_service.model.account.exception.InactiveAccountException;
-import com.springboot.accounts_service.model.account.exception.InvalidDocumentException;
+import com.springboot.accounts_service.model.account.exception.*;
 import com.springboot.accounts_service.model.transfer.exception.InsufficientBalanceException;
 import com.springboot.accounts_service.model.transfer.exception.SameAccountTransferException;
 import com.springboot.accounts_service.model.transfer.exception.TransferNotFoundException;
@@ -68,6 +65,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         problem.setTitle("Account not active");
         return problem;
+    }
+
+    @ExceptionHandler(CashAccountNotFoundException.class)
+    public ProblemDetail handleCashAccountNotFound(CashAccountNotFoundException ex) {
+        logger.error("Bank internal CASH account was not found.", ex);
+
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "An unexpected error occurred."
+        );
     }
 
     @ExceptionHandler(Exception.class)

@@ -1,11 +1,11 @@
 package com.springboot.accounts_service.service;
 
+import com.springboot.accounts_service.model.account.Account;
+import com.springboot.accounts_service.model.account.AccountType;
+import com.springboot.accounts_service.model.account.dto.DataAccountCreation;
 import com.springboot.accounts_service.model.account.exception.AccountNotFoundException;
 import com.springboot.accounts_service.model.account.exception.DocumentAlreadyRegisteredException;
 import com.springboot.accounts_service.model.account.exception.InvalidDocumentException;
-import com.springboot.accounts_service.model.account.Account;
-import com.springboot.accounts_service.model.account.dto.DataAccountBalance;
-import com.springboot.accounts_service.model.account.dto.DataAccountCreation;
 import com.springboot.accounts_service.model.validation.CpfUtils;
 import com.springboot.accounts_service.repository.AccountRepository;
 import com.springboot.accounts_service.repository.LedgerEntryRepository;
@@ -55,18 +55,21 @@ public class AccountService {
     }
 
     public Page<Account> listAllAccounts(Pageable pageable) {
-        return accountRepository.findAll(pageable);
+        return accountRepository.findAllByAccountType(AccountType.CUSTOMER, pageable);
     }
 
     public Account fetchAccount(Long id) {
-        return accountRepository.findById(id)
+        return accountRepository.findByIdAndAccountType(id, AccountType.CUSTOMER)
                 .orElseThrow(AccountNotFoundException::new);
     }
 
     @Transactional(readOnly = true)
     public BigDecimal getBalance(Long id) {
 
-        if (!accountRepository.existsById(id)) {
+        var account = accountRepository.findById(id)
+                .orElseThrow(AccountNotFoundException::new);
+
+        if (account.getAccountType() != AccountType.CUSTOMER) {
             throw new AccountNotFoundException();
         }
 

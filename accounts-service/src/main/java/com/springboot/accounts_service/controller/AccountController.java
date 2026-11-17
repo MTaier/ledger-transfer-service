@@ -3,7 +3,10 @@ package com.springboot.accounts_service.controller;
 import com.springboot.accounts_service.model.account.dto.DataAccountBalance;
 import com.springboot.accounts_service.model.account.dto.DataAccountCreation;
 import com.springboot.accounts_service.model.account.dto.DataAccountDetails;
+import com.springboot.accounts_service.model.transfer.dto.DepositEntry;
+import com.springboot.accounts_service.model.transfer.dto.TransferExit;
 import com.springboot.accounts_service.service.AccountService;
+import com.springboot.accounts_service.service.TransferService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -17,9 +20,11 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class AccountController {
 
     private final AccountService accountService;
+    private final TransferService transferService;
 
-    public AccountController(AccountService accountService) {
+    public AccountController(AccountService accountService, TransferService transferService) {
         this.accountService = accountService;
+        this.transferService = transferService;
     }
 
     @PostMapping
@@ -64,6 +69,21 @@ public class AccountController {
         var balance = accountService.getBalance(id);
 
         return ResponseEntity.ok(new DataAccountBalance(id, balance));
+
+    }
+
+    @PostMapping("/{id}/deposits")
+    public ResponseEntity<TransferExit> postDeposit(@PathVariable Long id, @RequestBody @Valid DepositEntry depositData, UriComponentsBuilder uriBuilder) {
+
+        var deposit = transferService.createDeposit(id, depositData);
+
+        var uri = uriBuilder
+                .path("/transfers/{id}")
+                .buildAndExpand(deposit.getId())
+                .toUri();
+
+        return ResponseEntity.created(uri)
+                .body(new TransferExit(deposit));
 
     }
 

@@ -29,6 +29,10 @@ public class Account {
     @NotNull
     private LocalDateTime createdAt;
 
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    private AccountType accountType;
+
     protected Account() {
     }
 
@@ -37,6 +41,7 @@ public class Account {
         this.document = document;
         this.status = AccountStatus.ACTIVE;
         this.createdAt = LocalDateTime.now();
+        this.accountType = AccountType.CUSTOMER;
     }
 
     public Long getId() {
@@ -71,4 +76,7 @@ public class Account {
         return createdAt;
     }
 
+    public AccountType getAccountType() {
+        return accountType;
+    }
 }
