@@ -4,7 +4,7 @@
 
 API de conta digital em Java e Spring Boot, construída para praticar os problemas reais de um sistema financeiro: ledger de lançamentos, transferências atômicas, concorrência, idempotência e eventos com outbox e Kafka.
 
-> **Status:** em desenvolvimento. Contas, ledger, transferências atômicas com todas as regras de negócio e consulta de saldo estão prontos e testados. Concorrência, idempotência e eventos são as próximas etapas (veja o [roadmap](#roadmap)).
+> **Status:** em desenvolvimento. Contas, ledger, transferências atômicas com todas as regras de negócio, depósitos pela conta caixa e consulta de saldo estão prontos e testados. Concorrência, idempotência e eventos são as próximas etapas (veja o [roadmap](#roadmap)).
 
 ## Stack
 
@@ -82,10 +82,10 @@ cd accounts-service
 
 | Tipo | O que cobre |
 | --- | --- |
-| Unitário | Validação e normalização de CPF; validação do valor da transferência no DTO; regras dos services (contas, saldo e transferências) com os repositories simulados |
-| Integração (banco) | Estrutura das tabelas após as migrations (chaves únicas, FKs e CHECKs); operações dos repositories; cálculo do saldo pelo ledger |
+| Unitário | Validação e normalização de CPF; validação do valor da transferência e do depósito nos DTOs; regras dos services (contas, saldo, transferências e depósitos) com os repositories simulados |
+| Integração (banco) | Estrutura das tabelas após as migrations (chaves únicas, FKs e CHECKs, incluindo o tipo de conta e a conta caixa criada pela migration); operações dos repositories; cálculo do saldo pelo ledger |
 | Integração (atomicidade) | Uma falha simulada no meio da transferência não deixa transferência nem lançamento gravados |
-| Integração (API) | Endpoints de ponta a ponta, incluindo saldos após a transferência e, para cada regra, o status, o title e o detail do erro |
+| Integração (API) | Endpoints de ponta a ponta, incluindo saldos após a transferência e o depósito, a conta caixa escondida e, para cada regra, o status, o title e o detail do erro |
 
 O CI roda o mesmo `mvnw verify` a cada push na `main` e a cada pull request.
 
@@ -127,7 +127,7 @@ Resposta `200 OK` com o mesmo formato acima, ou `404` se a conta não existir.
 GET /accounts?page=0&size=10
 ```
 
-Resposta `200 OK` paginada (10 itens por página por padrão).
+Resposta `200 OK` paginada (10 itens por página por padrão). Só lista contas de cliente; a conta caixa nunca aparece.
 
 ### Consultar saldo
 
@@ -182,6 +182,21 @@ GET /transfers/{id}
 
 Resposta `200 OK` com o mesmo formato acima, ou `404` se a transferência não existir.
 
+### Depositar
+
+```http
+POST /accounts/{id}/deposits
+Content-Type: application/json
+
+{
+  "amount": 100.00
+}
+```
+
+Resposta `201 Created` com o mesmo formato da transferência. O depósito é gravado como uma transferência da conta caixa para a conta `{id}`, então ele também pode ser consultado em `GET /transfers/{id}`.
+
+O valor segue as mesmas regras da transferência (positivo, com no máximo 2 casas decimais). A conta de destino precisa existir e estar ativa.
+
 ### Erros
 
 Todos os erros seguem o padrão **ProblemDetail** ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)):
@@ -202,12 +217,12 @@ Todos os erros seguem o padrão **ProblemDetail** ([RFC 9457](https://www.rfc-ed
 | Valor da transferência zero, negativo ou com mais de 2 casas decimais | 400 | Invalid data (com a lista `errors` por campo) |
 | CPF com dígitos verificadores inválidos | 400 | Invalid CPF |
 | CPF já cadastrado | 409 | CPF already registered |
-| Conta inexistente | 404 | Account not found |
+| Conta inexistente (ou o id da conta caixa) | 404 | Account not found |
 | Transferência inexistente | 404 | Transfer not found |
 | Origem igual ao destino | 422 | Invalid transfer |
 | Saldo insuficiente na origem | 422 | Insufficient balance |
 | Conta de origem ou destino inativa ou bloqueada | 422 | Account not active |
-| Erro inesperado | 500 | Internal server error |
+| Erro inesperado, incluindo a conta caixa ausente no banco | 500 | Internal server error |
 
 > `404` fica para o que não existe. Quando a conta existe mas a transferência viola uma regra de negócio (mesma conta, saldo insuficiente, conta inativa ou bloqueada), a resposta é `422`. Nos erros de conta, o `detail` diz qual das duas falhou (por exemplo, `Destination account not found.` ou `Source account is inactive or blocked.`). Conta inativa e conta bloqueada respondem igual, para não expor o motivo do bloqueio a quem tenta transferir.
 
@@ -219,6 +234,9 @@ Todos os erros seguem o padrão **ProblemDetail** ([RFC 9457](https://www.rfc-ed
 - **Validação em duas camadas.** O formato dos dados é validado no DTO (Bean Validation), como o valor positivo com no máximo 2 casas. As regras que exigem cálculo ou consulta ficam no service, na ordem da mais barata para a mais cara: origem igual ao destino (só olha a entrada), contas existentes e ativas, e por fim o saldo.
 - **Saldo derivado do ledger.** Não existe coluna de saldo. Cada transferência gera dois lançamentos imutáveis, um débito e um crédito de mesmo valor, e o saldo é a soma dos créditos menos a dos débitos. Assim o saldo nunca diverge do histórico, e a soma dos lançamentos de qualquer transferência é sempre zero.
 - **Transferência atômica.** O registro da transferência e os dois lançamentos são gravados na mesma transação. Se qualquer gravação falhar, nada fica no banco; um teste simula a falha depois do débito para provar isso.
+- **Depósito pela conta caixa.** O dinheiro que entra de fora (um PIX recebido, um boleto pago) passa por uma conta interna, a conta caixa, que representa o mundo externo. Um depósito é uma transferência da conta caixa para a conta do cliente, com um débito na caixa e um crédito no cliente. A alternativa, um endpoint que só grava um crédito, foi descartada: o dinheiro surgiria sem contrapartida, quebrando a partida dobrada, e todo lançamento do ledger já pertence a uma transferência. Com a conta caixa, toda movimentação continua gerando um par de lançamentos que soma zero, e o saldo negativo da caixa mostra quanto dinheiro entrou no sistema. Em troca, a conta caixa é a única que pode ficar negativa, e clientes não podem transferir para ela nem a partir dela. A caixa é identificada pela coluna `account_type` (`CUSTOMER` ou `CASH`), existe uma só, criada por migration, e é a única conta sem CPF; o banco garante por `CHECK` que toda conta de cliente tem CPF. O tipo nunca vem da requisição: toda conta criada pela API é de cliente.
+- **Conta caixa invisível pela API.** Para quem usa a API, a conta caixa não existe: ela não aparece na listagem, e qualquer endpoint que receba o id dela (consulta, saldo, depósito e transferência, como origem ou destino) responde `404 Account not found`, exatamente como para um id inexistente. Toda checagem de existência feita a pedido de um cliente pergunta "a conta existe e é de cliente?", então não há caminho esquecido por onde a caixa escape, e a API não confirma que aquele id é especial.
+- **Regras do depósito.** O valor segue as regras da transferência e a conta de destino precisa existir (`404`) e estar ativa (`422 Account not active`). O depósito não verifica saldo, porque a origem é sempre a conta caixa, a única que pode ficar negativa. Se a conta caixa não existir no banco, é erro de configuração do sistema, não do cliente: a resposta é `500` com mensagem genérica, e o detalhe fica só no log. O depósito roda na mesma transação que grava a transferência e os dois lançamentos, como a transferência comum.
 - **Exceções de domínio separadas da infraestrutura.** Cada domínio tem suas exceções (`model/account/exception`, `model/transfer/exception`), e só o tratador global, em `infra`, sabe traduzi-las para status HTTP.
 - **Schema controlado só pelo Flyway.** O Hibernate roda com `ddl-auto=validate`: ele confere se as entidades batem com as tabelas, mas nunca altera o banco.
 - **Id numérico sequencial.** O id da conta é `BIGINT AUTO_INCREMENT`, mais simples e eficiente como chave primária no InnoDB.
@@ -232,6 +250,7 @@ Todos os erros seguem o padrão **ProblemDetail** ([RFC 9457](https://www.rfc-ed
 - [x] Cadastro e consulta de contas, com validação de CPF e erros em ProblemDetail
 - [x] Ledger: transferências com um débito e um crédito na mesma transação; saldo como soma dos lançamentos
 - [x] Regras de transferência: valor inválido, mesma conta, conta inexistente, conta inativa ou bloqueada e saldo insuficiente
+- [x] Depósito pela conta caixa, invisível pela API
 - [ ] Concorrência: lock pessimista das contas em ordem de id
 - [ ] Idempotência com o header `Idempotency-Key` (Redis e banco)
 - [ ] Autenticação com JWT
