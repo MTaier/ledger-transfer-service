@@ -2,13 +2,9 @@ package com.springboot.accounts_service.controller;
 
 import com.springboot.accounts_service.TestcontainersConfiguration;
 import com.springboot.accounts_service.model.account.Account;
-import com.springboot.accounts_service.model.ledger.LedgerEntry;
-import com.springboot.accounts_service.model.ledger.LedgerEntryDirection;
-import com.springboot.accounts_service.model.transfer.Transfer;
-import com.springboot.accounts_service.model.transfer.TransferStatus;
+import com.springboot.accounts_service.model.account.AccountStatus;
+import com.springboot.accounts_service.model.account.AccountType;
 import com.springboot.accounts_service.repository.AccountRepository;
-import com.springboot.accounts_service.repository.LedgerEntryRepository;
-import com.springboot.accounts_service.repository.TransferRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +15,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -36,12 +31,6 @@ public class AccountControllerTest {
 
     @Autowired
     private AccountRepository accountRepository;
-
-    @Autowired
-    private TransferRepository transferRepository;
-
-    @Autowired
-    private LedgerEntryRepository ledgerEntryRepository;
 
     @Test
     @DisplayName("POST /accounts returns 201 with Location header and masked CPF")
@@ -114,14 +103,9 @@ public class AccountControllerTest {
     @DisplayName("GET /accounts/{id}/balance returns 200 with the sum of ledger entries")
     void shouldReturnAccountBalance() throws Exception {
         var account = accountRepository.save(new Account("John Doe", "88461276094"));
-        var source = accountRepository.save(new Account("Jane Doe", "12345678909"));
-
         var accountId = account.getId();
 
-        var firstTransfer = transferRepository.save(
-                new Transfer(source.getId(), account.getId(), new BigDecimal("100.00"), TransferStatus.COMPLETED));
-
-        ledgerEntryRepository.save(new LedgerEntry(firstTransfer.getId(), account.getId(), LedgerEntryDirection.CREDIT, new BigDecimal("100.00")));
+        deposit(accountId, "100.00");
 
         mockMvc.perform(get("/accounts/{accountId}/balance", accountId))
                 .andExpect(status().isOk())
@@ -150,4 +134,137 @@ public class AccountControllerTest {
                 .andExpect(jsonPath("$.title").value("Account not found"));
     }
 
+    @Test
+    @DisplayName("POST /accounts/{id}/deposits returns 201 and increases the balance by exactly the amount")
+    void shouldDepositAndIncreaseBalance() throws Exception {
+        var account = accountRepository.save(new Account("John Doe", "88461276094"));
+        var accountId = account.getId();
+
+        mockMvc.perform(post("/accounts/{accountId}/deposits", accountId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                                {"amount": 100.00}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(header().exists("Location"))
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.toAccountId").value(accountId))
+                .andExpect(jsonPath("$.amount").value(100.0));
+
+        mockMvc.perform(get("/accounts/{accountId}/balance", accountId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value(100.0));
+    }
+
+    @Test
+    @DisplayName("POST /accounts/{id}/deposits returns 404 Account not found when the account does not exist")
+    void shouldRejectDepositToMissingAccount() throws Exception {
+        mockMvc.perform(post("/accounts/999999/deposits")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                                {"amount": 100.00}
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Account not found"))
+                .andExpect(jsonPath("$.detail").value("Account not found."));
+    }
+
+    @Test
+    @DisplayName("POST /accounts/{id}/deposits returns 422 Account not active when the account is INACTIVE")
+    void shouldRejectDepositToInactiveAccount() throws Exception {
+        var account = accountRepository.save(new Account("John Doe", "88461276094"));
+        account.setStatus(AccountStatus.INACTIVE);
+        accountRepository.save(account);
+        var accountId = account.getId();
+
+        mockMvc.perform(post("/accounts/{accountId}/deposits", accountId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                                {"amount": 100.00}
+                                """))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.title").value("Account not active"))
+                .andExpect(jsonPath("$.detail").value("Account not active."));
+    }
+
+    @Test
+    @DisplayName("POST /accounts/{id}/deposits returns 404 Account not found for the cash account")
+    void shouldRejectDepositToCashAccount() throws Exception {
+        var cashAccount = accountRepository.findByAccountType(AccountType.CASH)
+                .orElseThrow();
+
+        mockMvc.perform(post("/accounts/{accountId}/deposits", cashAccount.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {"amount": 100.00}
+                            """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Account not found"))
+                .andExpect(jsonPath("$.detail").value("Account not found."));
+    }
+
+    @Test
+    @DisplayName("POST /accounts/{id}/deposits returns 400 Invalid data when the amount is negative")
+    void shouldRejectDepositWithInvalidAmount() throws Exception {
+        var account = accountRepository.save(new Account("John Doe", "88461276094"));
+        var accountId = account.getId();
+
+        mockMvc.perform(post("/accounts/{accountId}/deposits", accountId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"amount": -100.00}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Invalid data"))
+                .andExpect(jsonPath("$.detail").value("Invalid request content."));
+    }
+
+    @Test
+    @DisplayName("GET /accounts does not list the cash account")
+    void shouldNotListCashAccount() throws Exception {
+        var cashAccount = accountRepository.findByAccountType(AccountType.CASH)
+                .orElseThrow();
+
+        var customer = accountRepository.save(new Account("John Doe", "88461276094"));
+
+        mockMvc.perform(get("/accounts"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(customer.getId()))
+                .andExpect(jsonPath(
+                        "$.content[?(@.id == " + cashAccount.getId() + ")]"
+                ).isEmpty());
+    }
+
+    @Test
+    @DisplayName("GET /accounts/{id} returns 404 Account not found for the cash account")
+    void shouldReturnNotFoundForCashAccount() throws Exception {
+        var cashAccount = accountRepository.findByAccountType(AccountType.CASH)
+                .orElseThrow();
+
+        mockMvc.perform(get("/accounts/{cashAccountId}", cashAccount.getId()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Account not found"))
+                .andExpect(jsonPath("$.detail").value("Account not found."));
+    }
+
+    @Test
+    @DisplayName("GET /accounts/{id}/balance returns 404 Account not found for the cash account")
+    void shouldReturnNotFoundForCashAccountBalance() throws Exception {
+        var cashAccount = accountRepository.findByAccountType(AccountType.CASH)
+                .orElseThrow();
+
+        mockMvc.perform(get("/accounts/{cashAccountId}/balance", cashAccount.getId()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Account not found"))
+                .andExpect(jsonPath("$.detail").value("Account not found."));
+    }
+
+    private void deposit(Long accountId, String amount) throws Exception {
+        mockMvc.perform(post("/accounts/{accountId}/deposits", accountId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {"amount": %s}
+                            """.formatted(amount)))
+                .andExpect(status().isCreated());
+    }
 }

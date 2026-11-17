@@ -1,10 +1,11 @@
 package com.springboot.accounts_service.service;
 
+import com.springboot.accounts_service.model.account.Account;
+import com.springboot.accounts_service.model.account.AccountType;
+import com.springboot.accounts_service.model.account.dto.DataAccountCreation;
 import com.springboot.accounts_service.model.account.exception.AccountNotFoundException;
 import com.springboot.accounts_service.model.account.exception.DocumentAlreadyRegisteredException;
 import com.springboot.accounts_service.model.account.exception.InvalidDocumentException;
-import com.springboot.accounts_service.model.account.Account;
-import com.springboot.accounts_service.model.account.dto.DataAccountCreation;
 import com.springboot.accounts_service.repository.AccountRepository;
 import com.springboot.accounts_service.repository.LedgerEntryRepository;
 import org.hibernate.exception.ConstraintViolationException;
@@ -129,13 +130,13 @@ public class AccountServiceTest {
     void shouldThrowWhenAccountDoesNotExist() {
         Long accountId = 999L;
 
-        when(accountRepository.findById(accountId))
+        when(accountRepository.findByIdAndAccountType(accountId, AccountType.CUSTOMER))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> accountService.fetchAccount(accountId))
                 .isInstanceOf(AccountNotFoundException.class);
 
-        verify(accountRepository).findById(accountId);
+        verify(accountRepository).findByIdAndAccountType(accountId, AccountType.CUSTOMER);
     }
 
     @Test
@@ -175,7 +176,7 @@ public class AccountServiceTest {
     void shouldReturnBalanceWhenAccountExists() {
         Long accountId = 1L;
 
-        when(accountRepository.existsById(accountId)).thenReturn(true);
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(new Account("John Doe", "88461276094")));
         when(ledgerEntryRepository.calculateBalanceByAccountId(accountId)).thenReturn(new BigDecimal("500.00"));
 
         var result = accountService.getBalance(accountId);
@@ -188,13 +189,13 @@ public class AccountServiceTest {
     void shouldThrowWhenAccountDoesNotExistOnBalance() {
         Long accountId = 999L;
 
-        when(accountRepository.existsById(accountId))
-                .thenReturn(false);
+        when(accountRepository.findById(accountId))
+                .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> accountService.getBalance(accountId))
                 .isInstanceOf(AccountNotFoundException.class);
 
-        verify(accountRepository).existsById(accountId);
+        verify(accountRepository).findById(accountId);
         verify(ledgerEntryRepository, never()).calculateBalanceByAccountId(accountId);
     }
 

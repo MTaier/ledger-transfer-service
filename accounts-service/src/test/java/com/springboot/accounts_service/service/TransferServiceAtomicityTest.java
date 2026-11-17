@@ -2,6 +2,7 @@ package com.springboot.accounts_service.service;
 
 import com.springboot.accounts_service.TestcontainersConfiguration;
 import com.springboot.accounts_service.model.account.Account;
+import com.springboot.accounts_service.model.account.AccountType;
 import com.springboot.accounts_service.model.ledger.LedgerEntry;
 import com.springboot.accounts_service.model.ledger.LedgerEntryDirection;
 import com.springboot.accounts_service.model.transfer.Transfer;
@@ -45,7 +46,7 @@ public class TransferServiceAtomicityTest {
     void cleanUp() {
         ledgerEntryRepository.deleteAll();
         transferRepository.deleteAll();
-        accountRepository.deleteAll();
+        accountRepository.deleteByAccountType(AccountType.CUSTOMER);
     }
 
     @Test

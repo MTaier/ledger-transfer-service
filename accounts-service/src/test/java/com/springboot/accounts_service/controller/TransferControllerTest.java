@@ -3,12 +3,10 @@ package com.springboot.accounts_service.controller;
 import com.springboot.accounts_service.TestcontainersConfiguration;
 import com.springboot.accounts_service.model.account.Account;
 import com.springboot.accounts_service.model.account.AccountStatus;
-import com.springboot.accounts_service.model.ledger.LedgerEntry;
-import com.springboot.accounts_service.model.ledger.LedgerEntryDirection;
+import com.springboot.accounts_service.model.account.AccountType;
 import com.springboot.accounts_service.model.transfer.Transfer;
 import com.springboot.accounts_service.model.transfer.TransferStatus;
 import com.springboot.accounts_service.repository.AccountRepository;
-import com.springboot.accounts_service.repository.LedgerEntryRepository;
 import com.springboot.accounts_service.repository.TransferRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,9 +39,6 @@ public class TransferControllerTest {
     @Autowired
     private TransferRepository transferRepository;
 
-    @Autowired
-    private LedgerEntryRepository ledgerEntryRepository;
-
 
     @Test
     @DisplayName("POST /transfers returns 201 with Location header and COMPLETED status")
@@ -51,8 +46,7 @@ public class TransferControllerTest {
         var account = accountRepository.save(new Account("John Doe", "88461276094"));
         var source = accountRepository.save(new Account("Jane Doe", "12345678909"));
 
-        var transfer = transferRepository.save(new Transfer(account.getId(), source.getId(), new BigDecimal("100.00"), TransferStatus.COMPLETED));
-        ledgerEntryRepository.save(new LedgerEntry(transfer.getId(), source.getId(), LedgerEntryDirection.CREDIT, transfer.getAmount()));
+        deposit(source.getId(), "100.00");
 
        mockMvc.perform(post("/transfers")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -73,8 +67,7 @@ public class TransferControllerTest {
         var accountId = account.getId();
         var sourceId = source.getId();
 
-        var transfer = transferRepository.save(new Transfer(account.getId(), source.getId(), new BigDecimal("100.00"), TransferStatus.COMPLETED));
-        ledgerEntryRepository.save(new LedgerEntry(transfer.getId(), source.getId(), LedgerEntryDirection.CREDIT, transfer.getAmount()));
+        deposit(source.getId(), "100.00");
 
         mockMvc.perform(post("/transfers")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -114,9 +107,6 @@ public class TransferControllerTest {
         var account = accountRepository.save(new Account("John Doe", "88461276094"));
         var source = accountRepository.save(new Account("Jane Doe", "12345678909"));
 
-        var transfer = transferRepository.save(new Transfer(source.getId(), account.getId(), new BigDecimal("100.00"), TransferStatus.COMPLETED));
-        ledgerEntryRepository.save(new LedgerEntry(transfer.getId(), account.getId(), LedgerEntryDirection.CREDIT, transfer.getAmount()));
-
         mockMvc.perform(post("/transfers")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
@@ -133,9 +123,6 @@ public class TransferControllerTest {
         var account = accountRepository.save(new Account("John Doe", "88461276094"));
         var source = accountRepository.save(new Account("Jane Doe", "12345678909"));
 
-        var transfer = transferRepository.save(new Transfer(source.getId(), account.getId(), new BigDecimal("100.00"), TransferStatus.COMPLETED));
-        ledgerEntryRepository.save(new LedgerEntry(transfer.getId(), account.getId(), LedgerEntryDirection.CREDIT, transfer.getAmount()));
-
         mockMvc.perform(post("/transfers")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
@@ -151,9 +138,6 @@ public class TransferControllerTest {
     void shouldRejectInvalidTransferBody() throws Exception {
         var account = accountRepository.save(new Account("John Doe", "88461276094"));
         var source = accountRepository.save(new Account("Jane Doe", "12345678909"));
-
-        var transfer = transferRepository.save(new Transfer(account.getId(), source.getId(), new BigDecimal("100.00"), TransferStatus.COMPLETED));
-        ledgerEntryRepository.save(new LedgerEntry(transfer.getId(), source.getId(), LedgerEntryDirection.CREDIT, transfer.getAmount()));
 
         mockMvc.perform(post("/transfers")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -172,7 +156,6 @@ public class TransferControllerTest {
         var source = accountRepository.save(new Account("Jane Doe", "12345678909"));
 
         var transfer = transferRepository.save(new Transfer(account.getId(), source.getId(), new BigDecimal("100.00"), TransferStatus.COMPLETED));
-        ledgerEntryRepository.save(new LedgerEntry(transfer.getId(), source.getId(), LedgerEntryDirection.CREDIT, transfer.getAmount()));
 
         var transferId = transfer.getId();
 
@@ -267,5 +250,46 @@ public class TransferControllerTest {
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.title").value("Account not active"))
                 .andExpect(jsonPath("$.detail").value("Destination account is inactive or blocked."));
+    }
+
+    @Test
+    @DisplayName("POST /transfers returns 404 Account not found when the source is the cash account")
+    void shouldRejectTransferFromCashAccount() throws Exception {
+        var cashAccount = accountRepository.findByAccountType(AccountType.CASH).orElseThrow();
+        var destination = accountRepository.save(new Account("John Doe", "88461276094"));
+
+        mockMvc.perform(post("/transfers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {"fromAccountId": %d, "toAccountId": %d, "amount": 50.00}
+                            """.formatted(cashAccount.getId(), destination.getId())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Account not found"))
+                .andExpect(jsonPath("$.detail").value("Source account not found."));
+    }
+
+    @Test
+    @DisplayName("POST /transfers returns 404 Account not found when the destination is the cash account")
+    void shouldRejectTransferToCashAccount() throws Exception {
+        var cashAccount = accountRepository.findByAccountType(AccountType.CASH).orElseThrow();
+        var source = accountRepository.save(new Account("Jane Doe", "12345678909"));
+
+        mockMvc.perform(post("/transfers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {"fromAccountId": %d, "toAccountId": %d, "amount": 50.00}
+                            """.formatted(source.getId(), cashAccount.getId())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Account not found"))
+                .andExpect(jsonPath("$.detail").value("Destination account not found."));
+    }
+
+    private void deposit(Long accountId, String amount) throws Exception {
+        mockMvc.perform(post("/accounts/{accountId}/deposits", accountId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {"amount": %s}
+                            """.formatted(amount)))
+                .andExpect(status().isCreated());
     }
 }

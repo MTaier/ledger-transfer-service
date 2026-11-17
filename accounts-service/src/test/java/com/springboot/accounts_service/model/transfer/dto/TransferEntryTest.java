@@ -67,7 +67,7 @@ class TransferEntryTest {
     @Test
     @DisplayName("Accepts an amount with exactly 2 decimal places")
     void shouldAcceptAmountWithTwoDecimals() {
-        var entry = new TransferEntry(1L, 2L, new BigDecimal("10.00"));
+        var entry = new TransferEntry(1L, 2L, new BigDecimal("10.05"));
 
         var violations = validator.validate(entry);
 

@@ -6,11 +6,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.UncategorizedSQLException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 // Estes testes não usam a entidade nem o repository: perguntam direto ao MySQL
 // como a tabela ficou depois de TODAS as migrations (V1, V2, V3...).
@@ -26,9 +28,14 @@ class FlywayMigrationTest {
     @Test
     @DisplayName("Flyway creates the accounts table")
     void accountsTableIsCreatedByFlyway() {
-        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM accounts", Integer.class);
+        Integer count = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'accounts'
+            """, Integer.class);
 
-        assertThat(count).isZero();
+        assertThat(count).isEqualTo(1);
     }
 
     @Test
@@ -83,7 +90,7 @@ class FlywayMigrationTest {
         // containsExactlyInAnyOrder falha se alguma dessas colunas passar a aceitar nulo
         // ou se surgir outra coluna NOT NULL que não esteja na lista.
         assertThat(notNullColumns)
-                .containsExactlyInAnyOrder("id", "owner_name", "document", "status", "created_at");
+                .containsExactlyInAnyOrder("id", "owner_name", "account_type", "status", "created_at");
     }
 
     @Test
@@ -210,5 +217,62 @@ class FlywayMigrationTest {
                 "fk_ledger_entries_transfer",
                 "fk_ledger_entries_account"
         );
+    }
+
+    @Test
+    @DisplayName("accounts.account_type defaults to CUSTOMER")
+    void shouldDefaultAccountTypeToCustomer() {
+        String defaultValue = jdbcTemplate.queryForObject(
+                """
+                SELECT COLUMN_DEFAULT
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = 'accounts'
+                    AND COLUMN_NAME = 'account_type'
+                """,
+                String.class
+        );
+
+        assertThat(defaultValue).isEqualTo("CUSTOMER");
+    }
+
+    @Test
+    @DisplayName("The migration creates exactly one active CASH account")
+    void shouldCreateExactlyOneActiveCashAccount() {
+        Integer count = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM accounts
+                WHERE account_type = 'CASH'
+                    AND status = 'ACTIVE'
+                """,
+                Integer.class
+        );
+
+        assertThat(count).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("The database rejects a CUSTOMER account without a CPF")
+    void shouldRejectCustomerAccountWithoutDocument() {
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                """
+                INSERT INTO accounts (owner_name, status, account_type)
+                VALUES ('Test Customer', 'ACTIVE', 'CUSTOMER')
+                """
+        )).isInstanceOf(UncategorizedSQLException.class)
+                .hasMessageContaining("ck_accounts_customer_has_document");
+    }
+
+    @Test
+    @DisplayName("The database rejects an account type other than CUSTOMER or CASH")
+    void shouldRejectUnknownAccountType() {
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                """
+                INSERT INTO accounts (owner_name, status, account_type)
+                VALUES ('Invalid Account', 'ACTIVE', 'UNKNOWN')
+                """
+        )).isInstanceOf(UncategorizedSQLException.class)
+                .hasMessageContaining("ck_accounts_type");
     }
 }

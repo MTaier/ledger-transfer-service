@@ -2,6 +2,7 @@ package com.springboot.accounts_service.repository;
 
 import com.springboot.accounts_service.TestcontainersConfiguration;
 import com.springboot.accounts_service.model.account.Account;
+import com.springboot.accounts_service.model.account.AccountType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -83,5 +84,26 @@ class AccountRepositoryTest {
         // Quem barra aqui é a UNIQUE KEY uk_document do banco, não o código Java.
         assertThatThrownBy(() -> accountRepository.saveAndFlush(duplicate))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("Finds the CASH account created by the migration")
+    void shouldFindCashAccountByType() {
+        assertThat(accountRepository.findByAccountType(AccountType.CASH))
+                .isPresent()
+                .get()
+                .extracting(Account::getAccountType)
+                .isEqualTo(AccountType.CASH);
+    }
+
+    @Test
+    @DisplayName("A new account is CUSTOMER and not CASH")
+    void shouldReportNewAccountAsCustomer() {
+        var savedAccount = accountRepository.saveAndFlush(new Account("John Doe", VALID_DOCUMENT));
+
+        var accountId = savedAccount.getId();
+
+        assertThat(accountRepository.existsByIdAndAccountType(accountId, AccountType.CUSTOMER)).isTrue();
+        assertThat(accountRepository.existsByIdAndAccountType(accountId, AccountType.CASH)).isFalse();
     }
 }
