@@ -4,7 +4,7 @@
 
 API de conta digital em Java e Spring Boot, construída para praticar os problemas reais de um sistema financeiro: ledger de lançamentos, transferências atômicas, concorrência, idempotência e eventos com outbox e Kafka.
 
-> **Status:** em desenvolvimento. Contas, ledger, transferências atômicas com todas as regras de negócio, depósitos pela conta caixa e consulta de saldo estão prontos e testados. Concorrência, idempotência e eventos são as próximas etapas (veja o [roadmap](#roadmap)).
+> **Status:** em desenvolvimento. Contas, ledger, transferências atômicas com todas as regras de negócio, depósitos pela conta caixa, consulta de saldo e transferências concorrentes com lock pessimista estão prontos e testados. Idempotência e eventos são as próximas etapas (veja o [roadmap](#roadmap)).
 
 ## Stack
 
@@ -175,7 +175,7 @@ Resposta `201 Created`, com o header `Location: http://localhost:8081/transfers/
 }
 ```
 
-A transferência só é aceita se as duas contas existirem e estiverem ativas, forem diferentes e a origem tiver saldo suficiente. Ela grava, na mesma transação, o registro da transferência, um débito na origem e um crédito no destino.
+A transferência só é aceita se as duas contas existirem e estiverem ativas, forem diferentes e a origem tiver saldo suficiente. Ela grava, na mesma transação, o registro da transferência, um débito na origem e um crédito no destino. As duas contas ficam trancadas até o fim da transação, então transferências simultâneas da mesma conta passam uma de cada vez. Se uma conta continuar ocupada por mais de 5 segundos, a resposta é `409 Account temporarily unavailable`, e a requisição pode ser repetida.
 
 ### Consultar transferência
 
