@@ -66,12 +66,14 @@ public class TransferServiceTest {
     void shouldRejectTransferWhenSourceAccountDoesNotExist() {
         TransferEntry transfer = new TransferEntry(1L, 2L, new BigDecimal("100.00"));
 
-        when(accountRepository.existsByIdAndAccountType(1L, AccountType.CUSTOMER)).thenReturn(false);
+        var destinationAccount = new Account("Jane Doe", "12345678909");
+
+        when(accountRepository.findCustomerByIdForUpdate(1L)).thenReturn(Optional.empty());
+        when(accountRepository.findCustomerByIdForUpdate(2L)).thenReturn(Optional.of(destinationAccount));
 
         assertThatThrownBy(() -> transferService.createTransfer(transfer))
                 .isInstanceOf(AccountNotFoundException.class);
 
-        verify(accountRepository, never()).existsByIdAndStatus(2L, AccountStatus.ACTIVE);
         verify(transferRepository, never()).save(any(Transfer.class));
         verify(ledgerEntryRepository, never()).save(any(LedgerEntry.class));
     }
@@ -81,11 +83,12 @@ public class TransferServiceTest {
     void shouldRejectTransferWhenDestinationAccountIsInactive() {
         TransferEntry transfer = new TransferEntry(1L, 2L, new BigDecimal("100.00"));
 
-        when(accountRepository.existsByIdAndAccountType(1L, AccountType.CUSTOMER)).thenReturn(true);
-        when(accountRepository.existsByIdAndAccountType(2L, AccountType.CUSTOMER)).thenReturn(true);
+        var sourceAccount = new Account("John Doe", "88461276094");
+        var destinationAccount = new Account("Jane Doe", "12345678909");
+        destinationAccount.setStatus(AccountStatus.INACTIVE);
 
-        when(accountRepository.existsByIdAndStatus(1L, AccountStatus.ACTIVE)).thenReturn(true);
-        when(accountRepository.existsByIdAndStatus(2L, AccountStatus.ACTIVE)).thenReturn(false);
+        when(accountRepository.findCustomerByIdForUpdate(1L)).thenReturn(Optional.of(sourceAccount));
+        when(accountRepository.findCustomerByIdForUpdate(2L)).thenReturn(Optional.of(destinationAccount));
 
         assertThatThrownBy(() -> transferService.createTransfer(transfer))
                 .isInstanceOf(InactiveAccountException.class)
@@ -100,11 +103,12 @@ public class TransferServiceTest {
     void shouldRejectTransferWhenBalanceIsInsufficient() {
         TransferEntry transfer = new TransferEntry(1L, 2L, new BigDecimal("100.00"));
 
-        when(accountRepository.existsByIdAndAccountType(1L, AccountType.CUSTOMER)).thenReturn(true);
-        when(accountRepository.existsByIdAndAccountType(2L, AccountType.CUSTOMER)).thenReturn(true);
+        var sourceAccount = new Account("John Doe", "88461276094");
+        var destinationAccount = new Account("Jane Doe", "12345678909");
 
-        when(accountRepository.existsByIdAndStatus(1L, AccountStatus.ACTIVE)).thenReturn(true);
-        when(accountRepository.existsByIdAndStatus(2L, AccountStatus.ACTIVE)).thenReturn(true);
+        when(accountRepository.findCustomerByIdForUpdate(1L)).thenReturn(Optional.of(sourceAccount));
+        when(accountRepository.findCustomerByIdForUpdate(2L)).thenReturn(Optional.of(destinationAccount));
+
         when(ledgerEntryRepository.calculateBalanceByAccountId(1L)).thenReturn(new BigDecimal("50.00"));
 
         assertThatThrownBy(() -> transferService.createTransfer(transfer))
@@ -119,11 +123,12 @@ public class TransferServiceTest {
     void shouldCreateTransferWithDebitAndCreditEntries() {
         TransferEntry transfer = new TransferEntry(1L, 2L, new BigDecimal("100.00"));
 
-        when(accountRepository.existsByIdAndAccountType(1L, AccountType.CUSTOMER)).thenReturn(true);
-        when(accountRepository.existsByIdAndAccountType(2L, AccountType.CUSTOMER)).thenReturn(true);
+        var sourceAccount = new Account("John Doe", "88461276094");
+        var destinationAccount = new Account("Jane Doe", "12345678909");
 
-        when(accountRepository.existsByIdAndStatus(1L, AccountStatus.ACTIVE)).thenReturn(true);
-        when(accountRepository.existsByIdAndStatus(2L, AccountStatus.ACTIVE)).thenReturn(true);
+        when(accountRepository.findCustomerByIdForUpdate(1L)).thenReturn(Optional.of(sourceAccount));
+        when(accountRepository.findCustomerByIdForUpdate(2L)).thenReturn(Optional.of(destinationAccount));
+
         when(ledgerEntryRepository.calculateBalanceByAccountId(1L)).thenReturn(new BigDecimal("500.00"));
 
         when(transferRepository.save(any(Transfer.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -158,8 +163,10 @@ public class TransferServiceTest {
     void shouldRejectTransferWhenDestinationAccountDoesNotExist() {
         TransferEntry transfer = new TransferEntry(1L, 999999L, new BigDecimal("100.00"));
 
-        when(accountRepository.existsByIdAndAccountType(1L, AccountType.CUSTOMER)).thenReturn(true);
-        when(accountRepository.existsByIdAndAccountType(999999L, AccountType.CUSTOMER)).thenReturn(false);
+        var sourceAccount = new Account("John Doe", "88461276094");
+
+        when(accountRepository.findCustomerByIdForUpdate(1L)).thenReturn(Optional.of(sourceAccount));
+        when(accountRepository.findCustomerByIdForUpdate(999999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> transferService.createTransfer(transfer))
                 .isInstanceOf(AccountNotFoundException.class);
@@ -173,10 +180,12 @@ public class TransferServiceTest {
     void shouldRejectTransferWhenSourceAccountIsNotActive() {
         TransferEntry transfer = new TransferEntry(1L, 2L, new BigDecimal("100.00"));
 
-        when(accountRepository.existsByIdAndAccountType(1L, AccountType.CUSTOMER)).thenReturn(true);
-        when(accountRepository.existsByIdAndAccountType(2L, AccountType.CUSTOMER)).thenReturn(true);
+        var sourceAccount = new Account("John Doe", "88461276094");
+        var destinationAccount = new Account("Jane Doe", "12345678909");
+        sourceAccount.setStatus(AccountStatus.INACTIVE);
 
-        when(accountRepository.existsByIdAndStatus(1L, AccountStatus.ACTIVE)).thenReturn(false);
+        when(accountRepository.findCustomerByIdForUpdate(1L)).thenReturn(Optional.of(sourceAccount));
+        when(accountRepository.findCustomerByIdForUpdate(2L)).thenReturn(Optional.of(destinationAccount));
 
         assertThatThrownBy(() -> transferService.createTransfer(transfer))
                 .isInstanceOf(InactiveAccountException.class)
@@ -191,11 +200,11 @@ public class TransferServiceTest {
     void shouldAcceptTransferWhenBalanceEqualsAmount() {
         TransferEntry transfer = new TransferEntry(1L, 2L, new BigDecimal("100.00"));
 
-        when(accountRepository.existsByIdAndAccountType(1L, AccountType.CUSTOMER)).thenReturn(true);
-        when(accountRepository.existsByIdAndAccountType(2L, AccountType.CUSTOMER)).thenReturn(true);
+        var sourceAccount = new Account("John Doe", "88461276094");
+        var destinationAccount = new Account("Jane Doe", "12345678909");
 
-        when(accountRepository.existsByIdAndStatus(1L, AccountStatus.ACTIVE)).thenReturn(true);
-        when(accountRepository.existsByIdAndStatus(2L, AccountStatus.ACTIVE)).thenReturn(true);
+        when(accountRepository.findCustomerByIdForUpdate(1L)).thenReturn(Optional.of(sourceAccount));
+        when(accountRepository.findCustomerByIdForUpdate(2L)).thenReturn(Optional.of(destinationAccount));
 
         when(ledgerEntryRepository.calculateBalanceByAccountId(1L)).thenReturn(new BigDecimal("100.00"));
 
@@ -231,7 +240,10 @@ public class TransferServiceTest {
     void shouldRejectTransferFromCashAccount() {
         TransferEntry transfer = new TransferEntry(99L, 2L, new BigDecimal("100.00"));
 
-        when(accountRepository.existsByIdAndAccountType(99L, AccountType.CUSTOMER)).thenReturn(false);
+        var destinationAccount = new Account("Jane Doe", "12345678909");
+
+        when(accountRepository.findCustomerByIdForUpdate(99L)).thenReturn(Optional.empty());
+        when(accountRepository.findCustomerByIdForUpdate(2L)).thenReturn(Optional.of(destinationAccount));
 
         assertThatThrownBy(() -> transferService.createTransfer(transfer))
                 .isInstanceOf(AccountNotFoundException.class)
@@ -246,8 +258,10 @@ public class TransferServiceTest {
     void shouldRejectTransferToCashAccount() {
         TransferEntry transfer = new TransferEntry(1L, 99L, new BigDecimal("100.00"));
 
-        when(accountRepository.existsByIdAndAccountType(1L, AccountType.CUSTOMER)).thenReturn(true);
-        when(accountRepository.existsByIdAndAccountType(99L, AccountType.CUSTOMER)).thenReturn(false);
+        var sourceAccount = new Account("John Doe", "88461276094");
+
+        when(accountRepository.findCustomerByIdForUpdate(1L)).thenReturn(Optional.of(sourceAccount));
+        when(accountRepository.findCustomerByIdForUpdate(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> transferService.createTransfer(transfer))
                 .isInstanceOf(AccountNotFoundException.class)
