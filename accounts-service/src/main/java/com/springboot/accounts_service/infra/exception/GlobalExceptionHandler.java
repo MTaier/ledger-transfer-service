@@ -4,6 +4,7 @@ import com.springboot.accounts_service.model.account.exception.*;
 import com.springboot.accounts_service.model.transfer.exception.InsufficientBalanceException;
 import com.springboot.accounts_service.model.transfer.exception.SameAccountTransferException;
 import com.springboot.accounts_service.model.transfer.exception.TransferNotFoundException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.*;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -75,6 +76,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "An unexpected error occurred."
         );
+    }
+
+    @ExceptionHandler(PessimisticLockingFailureException.class)
+    public ProblemDetail handlePessimisticLockingFailure(PessimisticLockingFailureException ex) {
+        logger.error("Pessimistic locking failure occurred while processing an account operation.", ex);
+
+        var problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT,
+                "The account is temporarily unavailable. Please try again later."
+        );
+
+        problem.setTitle("Account temporarily unavailable");
+        return problem;
     }
 
     @ExceptionHandler(Exception.class)

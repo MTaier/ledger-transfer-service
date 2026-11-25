@@ -1,5 +1,6 @@
 package com.springboot.accounts_service.service;
 
+import com.springboot.accounts_service.model.account.Account;
 import com.springboot.accounts_service.model.account.AccountStatus;
 import com.springboot.accounts_service.model.account.AccountType;
 import com.springboot.accounts_service.model.account.exception.AccountNotFoundException;
@@ -19,6 +20,8 @@ import com.springboot.accounts_service.repository.LedgerEntryRepository;
 import com.springboot.accounts_service.repository.TransferRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
 
 @Service
 public class TransferService {
@@ -40,19 +43,30 @@ public class TransferService {
             throw new SameAccountTransferException();
         }
 
-        if (!accountRepository.existsByIdAndAccountType(data.fromAccountId(), AccountType.CUSTOMER)) {
-            throw new AccountNotFoundException("Source account not found.");
+        Optional<Account> sourceAccount;
+        Optional<Account> destinationAccount;
+
+        if (data.fromAccountId() < data.toAccountId()) {
+            sourceAccount = accountRepository.findCustomerByIdForUpdate(data.fromAccountId());
+            destinationAccount = accountRepository.findCustomerByIdForUpdate(data.toAccountId());
+        } else {
+            destinationAccount = accountRepository.findCustomerByIdForUpdate(data.toAccountId());
+            sourceAccount = accountRepository.findCustomerByIdForUpdate(data.fromAccountId());
         }
 
-        if (!accountRepository.existsByIdAndAccountType(data.toAccountId(), AccountType.CUSTOMER)) {
-            throw new AccountNotFoundException("Destination account not found.");
-        }
+        var source = sourceAccount.orElseThrow(
+                () -> new AccountNotFoundException("Source account not found.")
+        );
 
-        if (!accountRepository.existsByIdAndStatus(data.fromAccountId(), AccountStatus.ACTIVE)) {
+        var destination = destinationAccount.orElseThrow(
+                () -> new AccountNotFoundException("Destination account not found.")
+        );
+
+        if (source.getStatus() != AccountStatus.ACTIVE) {
             throw new InactiveAccountException("Source account is inactive or blocked.");
         }
 
-        if (!accountRepository.existsByIdAndStatus(data.toAccountId(), AccountStatus.ACTIVE)) {
+        if (destination.getStatus() != AccountStatus.ACTIVE) {
             throw new InactiveAccountException("Destination account is inactive or blocked.");
         }
 
