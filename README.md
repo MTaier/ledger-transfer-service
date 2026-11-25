@@ -259,7 +259,7 @@ Todos os erros seguem o padrão **ProblemDetail** ([RFC 9457](https://www.rfc-ed
 - [x] Ledger: transferências com um débito e um crédito na mesma transação; saldo como soma dos lançamentos
 - [x] Regras de transferência: valor inválido, mesma conta, conta inexistente, conta inativa ou bloqueada e saldo insuficiente
 - [x] Depósito pela conta caixa, invisível pela API
-- [ ] Concorrência: lock pessimista das contas em ordem de id
+- [x] Concorrência: lock pessimista das contas em ordem de id
 - [ ] Idempotência com o header `Idempotency-Key` (Redis e banco)
 - [ ] Autenticação com JWT
 - [ ] Documentação OpenAPI
